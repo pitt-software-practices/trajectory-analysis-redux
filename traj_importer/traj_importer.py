@@ -25,7 +25,7 @@ def modify(frame,data):
 
 # vacancylabel_io
 def vacancylabel_io(file_path, filename):
-    orig_dir = os.cwd()
+    orig_dir = os.getcwd()
     try:
         os.chdir(file_path)
     except:
