@@ -1,5 +1,4 @@
 import os
-import sys
 import random
 import numpy as np
 import pandas as pd
@@ -75,19 +74,9 @@ class TrajStats():
         # atoms of interest
         self.atomsvstime = np.array([self.atomtrajs[frame][:,1:] for frame in self.atomtrajs.keys()], dtype = float)
         self.natoms = len(self.atomsvstime[0,:,0])
-        # vacancies only (nvacs required to smooth nested sequence into the same shapes
-        # in case there are 0 lattice vacancies in a frame, or some fluctuating number)
-        # This fluctuation happens infrequently and can be fixed by propagating the previous frame
-        # forward in time starting from the initial count (in the very first frame of the trajectory)
-        self.nvacs = len(self.vactrajs[0][:,0])
-        # a list comprehension with the above logic
-        try:
-            self.vacsvstime = np.array([self.vactrajs[frame][:,1:] if self.vactrajs[frame][:,1:].shape == (self.nvacs,3)
-                               else self.vactrajs[frame-1][:,1:]
-                               for frame in self.vactrajs.keys()])
-        except:
-            print("Vacancy count fluctuates significantly in OVITO WS-tracking, please inspect trajectory file")
-            sys.exit(1)#
+        # vacancies only
+        self.vacsvstime = np.array([self.vactrajs[frame][:,1:] for frame in self.vactrajs.keys()], dtype = float)
+        self.nvacs = len(self.vacsvstime[0,:,0])
         # put only the z-coordinate atomic data into a pandas dataframe
         ids = [atom + 1 for atom in range(0, self.natoms)]
         self.df = pd.DataFrame(index = range(0, self.pipeline.source.num_frames))
