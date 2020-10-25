@@ -35,15 +35,15 @@ class TrajStats():
 
 
     def __init__(self, filename, atomid, vacid, r = 3.0):
-            """
-            Parameters
-            ----------
-            filename: OVITO readable file such as .lmp or .xyz (ideally this is a preprocessed file by the user)
-            atomid: integer label for the dopant atom type in the file
-            vacid: integer label for the vacancy 'atom type'
-            r: cut-off radius for find_points_in_spheres (pymatgen)
-            ----------
-            """
+        """
+        Parameters
+        ----------
+        filename: OVITO readable file such as .lmp or .xyz (ideally this is a preprocessed file by the user)
+        atomid: integer label for the dopant atom type in the file
+        vacid: integer label for the vacancy 'atom type'
+        r: cut-off radius for find_points_in_spheres (pymatgen)
+        ----------
+        """
         self.filename = filename
         self.atomid = atomid
         self.vacid = vacid
