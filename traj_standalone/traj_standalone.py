@@ -84,7 +84,7 @@ class TrajStats():
         # a list comprehension with the above logic
         try:
             self.vacsvstime = np.array([self.vactrajs[frame][:,1:] if self.vactrajs[frame][:,1:].shape == (self.nvacs,3)
-                               else self.vactrajs[frame-1][:,1:]
+                               else self.vactrajs[frame-1][:self.nvacs,1:]
                                for frame in self.vactrajs.keys()])
         except:
             print("Vacancy count fluctuates significantly in OVITO WS-tracking, please inspect trajectory file")
@@ -134,9 +134,9 @@ class TrajStats():
 
         nseg = len(self.segregated)
         # atomic flux in atoms/ang^2/ps (2 ps per 1000 frames and 2A on the slab)
-        flux = nseg/(2*self.cell[0,0]*self.cell[1,1])/(2*self.timesteps)
+        self.flux = nseg/(2*self.cell[0,0]*self.cell[1,1])/(2*self.timesteps)
         # molar flux in mol/m2/s
-        flux = flux/(1e-20)/(6.02e23)/(1e-12)
+        self.flux = self.flux/(1e-20)/(6.02e23)/(1e-12)
         return self.flux
 
     # keep variances above 0.1 threshold
