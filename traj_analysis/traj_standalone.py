@@ -12,12 +12,17 @@ def pbc_distance(pos1, pos2, cell, dims = 3):
     """ Find distance between a set of atoms and their image in another timeframe
             - this assumes all particles are wrapped inside the simulation box
             - corrects for image convention if particle wraps to other side
+
         Parameters
         ---------
         pos1: (n_atoms, dims) ndarray for first set of positions
         pos2: (n_atoms, dims) ndarray for second set
         cell: (3,3) ndarray with simulation cell lengths
-        dims (optional): number of dimensions for the calculation
+        dims: (optional) number of dimensions for the calculation
+
+        Returns
+        ---------
+        diff: (n_atoms, dims) ndarray for periodic distances between the sets
     """
     diff = abs(pos1 - pos2)
     for i in range(dims):
@@ -28,13 +33,18 @@ def pbc_distance(pos1, pos2, cell, dims = 3):
 def calc_onsagers(disp_list_1, disp_list_2, delta_t, nsamples):
     """ Calculate onsager coefficients for a binary system to yield
         a scalar for the Maxwell-Stefan diffusivity
+
         Parameters
         -----------
         disp_list_1: list of ndarrays w/ shape (natoms,dims) if directional else (natoms,)
         disp_list_2: list of ndarrays w/ shape (natoms,dims) if directional else (natoms,)
         delta_t: float, time in picoseconds per traj frame
         nsamples: int, number of samples for expectation values
+
+        Returns
         -----------
+        onsager: 2x2 ndarray of measured onsager coefficients
+        onsager_std: 2x2 ndarray with std. deviations of onsager coefficients
     """
     ntotatoms = len(disp_list_1[0]) + len(disp_list_2[0])
     onsager = np.zeros((2,2))
@@ -60,13 +70,18 @@ def calc_onsagers(disp_list_1, disp_list_2, delta_t, nsamples):
 def calc_directional_onsagers(disp_list_1, disp_list_2, delta_t, nsamples):
     """ Calculate onsager coefficients for a binary alloy to yield
         vectors of diffusivity in each direction for orientation analysis
+
         Parameters
         -----------
         disp_list_1: list of ndarrays w/ shape (natoms,dims) if directional else (natoms,)
         disp_list_2: list of ndarrays w/ shape (natoms,dims) if directional else (natoms,)
         delta_t: float, time in picoseconds per traj frame
         nsamples: int, number of samples for expectation values
+
+        Returns
         -----------
+        onsager: 2x2 ndarray of measured onsager coefficients
+        onsager_std: 2x2 ndarray with std. deviations of onsager coefficients
     """
     # scaling factor
     ntotatoms = len(disp_list_1[0][:,0]) + len(disp_list_2[0][:,0])
@@ -116,13 +131,16 @@ def calc_directional_onsagers(disp_list_1, disp_list_2, delta_t, nsamples):
 
 # general function for pandas dataframe cross-correlation with lag
 def crosscorr(datax, datay, lag=0, wrap=False):
-    """ Lag-N cross correlation.
-    Shifted data filled with NaNs
+    """ Lag-N cross correlation; shifted data filled with NaNs
+        Adapted from Towards Data Science article
+        "Four Ways to quantify synchrony between time series data"
+        by Jin Hyun Cheong
 
     Parameters
     ----------
     lag : int, default 0
     datax, datay : pandas.Series objects of equal length
+
     Returns
     ----------
     crosscorr : float
@@ -138,20 +156,16 @@ class TrajStats():
     """ Trajectory Statistics
     Takes LAMMPS NVT outputs, extracts per atom trajectories, and provides
     several functions to compare them/plot features
+
+    Parameters
+    ----------
+    filename: OVITO readable file such as .lmp or .xyz (ideally this is a preprocessed file by the user)
+    atomid: integer label for the dopant atom type in the file
+    rich_atomid: integer label for the rich component in the file
+    vacid: integer label for the vacancy 'atom type'
+    parsplice: boolean flag for different time resolutions
     """
-
-
     def __init__(self, filename, atomid, rich_atomid, vacid, r = 3.0, parsplice = False):
-        """
-        Parameters
-        ----------
-        filename: OVITO readable file such as .lmp or .xyz (ideally this is a preprocessed file by the user)
-        atomid: integer label for the dopant atom type in the file
-        rich_atomid: integer label for the rich component in the file
-        vacid: integer label for the vacancy 'atom type'
-        parsplice: boolean flag for different time resolutions
-        ----------
-        """
         self.filename = filename
         self.atomid = atomid
         self.rich_atomid = rich_atomid
@@ -210,7 +224,7 @@ class TrajStats():
         for col in cols:
             self.variances[col] = self.df.var()[col]
         # same process for the atom type in richer phase of the alloy
-        ids = [atom + 1 for atom in range(0,self.natoms)]
+        ids = [atom + 1 for atom in range(0,self.nrichatoms)]
         self.richdf = pd.DataFrame(index = range(0, self.pipeline.source.num_frames))
         for atom_id in ids:
             self.richdf[atom_id] = self.rich_atomsvstime[:, atom_id - 1, 2]
@@ -231,6 +245,12 @@ class TrajStats():
 
     # personally designed flux measurement (very rough) for slab models w/ a centerline
     def naiveflux(self):
+        """ My personally designed "naive" flux measurement
+
+        Returns
+        ----------
+        float: approximate flux in mol/m2/s
+        """
         self.centerline = self.cell[2,2]/2
         self.segregated = []
         segregated = []
@@ -262,15 +282,16 @@ class TrajStats():
         """
         Calculate Maxwell-Stefan diffusivity coefficients using the
         Onsager reciprocal relations and a measurement of MSD
+
         Parameters
-        ===============
-        delta_t: Timestep (in picoseconds) per lammps dump file
-            *determined by LAMMPS dump frequency and internal timestep*
-
+        -----------
+        delta_t: Timestep (in picoseconds) per lammps dump file (determined by LAMMPS dump frequency and internal timestep)
         nsamples: Number of samples for MSD and vector displacement averaging
-
         directional:  Boolean flag for diffusion tensor
-        ===============
+
+        Returns
+        -----------
+        diffusivity: list with diffusivity, upper and lower bound
         """
         self.delta_t = delta_t
         self.nsamples = nsamples
@@ -333,6 +354,12 @@ class TrajStats():
         return self.diffusivity
     # keep variances above 0.1 threshold
     def keeping(self, threshold):
+        """ Generate dictionary for high variance particle plots
+
+        Parameters
+        -----------
+        threshold: variance threshold for the dictionary
+        """
         self.keeps = {}
         for key in self.variances.keys():
             # only relatively high variances are important
@@ -341,6 +368,8 @@ class TrajStats():
         return self.keeps
 
     def vackeeping(self,threshold):
+        """ Generate dictionary for high variance vacancy plots
+        """
         self.vackeeps = {}
         for key in self.vacvariances.keys():
             if self.vacvariances[key] > threshold:
@@ -349,6 +378,12 @@ class TrajStats():
 
     # plot a sampling of the trajectories over time
     def sample_ztraj(self, n):
+        """ Plot n samples of the dilute particle trajectories
+
+        Parameters
+        ------------
+        n: int, number of samples to draw for trajectory plots
+        """
         samples = self.df.sample(n, axis = 1)
         legend = []
         for col in list(samples):
@@ -360,6 +395,12 @@ class TrajStats():
         return None
 
     def sample_vacs_ztraj(self,n):
+        """ Plot n samples of the vacancy trajectories
+
+        Parameters
+        -----------
+        n: int, number of samples to draw for trajectory plots
+        """
         samples = self.vacdf.sample(n, axis = 1)
         legend = []
         for col in list(samples):
@@ -370,12 +411,16 @@ class TrajStats():
         return None
 
     def plot_variances(self):
+        """ Plot initial z-position vs. variance (typically surface should be higher)
+        """
         # initial z position on x axis and variance on y axis
         plt.plot([self.df[col][0] for col in self.cols], list(self.variances.values()), 'o')
         plt.show()
         return None
 
     def thresh_variance(self):
+        """ Plot z-coordinates of high variance particles
+        """
         leg_list = []
         # plot the trajectories that remain after filtering
         for key in self.keeps.keys():
@@ -387,6 +432,8 @@ class TrajStats():
         plt.ylabel('Z-Coordinate')
 
     def thresh_vacvariance(self):
+        """ Plot z-coordinates of high variance vacancies
+        """
         leg_list = []
         for key in self.vackeeps.keys():
             plt.plot(np.arange(1, self.pipeline.source.num_frames + 1), self.vackeeps[key])
@@ -399,6 +446,17 @@ class TrajStats():
 
     # raw cross correlation
     def cross(self, atomid1, atomid2, differenced = False):
+        """ Raw Cross-Correlation plot with time-lag offset on the x-axis
+        Adapted from Towards Data Science article
+        "Four Ways to quantify synchrony between time series data"
+        by Jin Hyun Cheong
+
+        Parameters
+        -------------
+        atomid1: pandas dataframe for 1st particle position
+        atomid2: pandas dataframe for 2nd particle position
+        differenced: (optional) boolean, True to perform time-differencing, default is False
+        """
         if differenced:
             d1 = self.diffdf[atomid1]
             d2 = self.diffdf[atomid2]
@@ -422,6 +480,13 @@ class TrajStats():
 
     # Windowed, time-lagged cross correlation
     def windowedcross(self, atomid1, atomid2, differenced = False):
+        """ Windowed Cross-Correlation plot with time-lag offset on the x-axis
+        Parameters
+        -----------
+        atomid1: pandas dataframe for 1st particle position
+        atomid2: pandas dataframe for 2nd particle position
+        differenced: (optional) boolean, True to perform time-differencing, default is False
+        """
         no_splits = 20
         samples_per_split = thousand.df.shape[0]/no_splits
         rss=[]
@@ -451,6 +516,14 @@ class TrajStats():
 
     # Rolling window, time-lagged cross correlation
     def rollingcross(self, atomid1, atomid2, differenced = False):
+        """ Rolling-window cross-correlation plot with time-lag offset on the x-axis
+
+        Parameters
+        -----------
+        atomid1: pandas dataframe for 1st particle position
+        atomid2: pandas dataframe for 2nd particle position
+        differenced: (optional) boolean, True to perform time-differencing, default is False
+        """
         seconds = 5
         fps = 10
         window_size = 300 #samples, should be a pretty high number compared to fps*sec to get good rolling averages
@@ -458,7 +531,7 @@ class TrajStats():
         t_end = t_start + window_size
         step_size = 20
         rss=[]
-        while t_end < self.pipeline.source.num_frames:
+        while t_end < self.timesteps:
             if differenced:
                 d1 = self.diffdf[atomid1].iloc[t_start:t_end]
                 d2 = self.diffdf[atomid2].iloc[t_start:t_end]
@@ -480,7 +553,15 @@ class TrajStats():
         return None
 
         # Rolling window, time-lagged cross correlation for dataframes in different classes
-    def rollingcrossvacs(atomid1, atomid2, differenced = False):
+    def rollingcrossvacs(self, atomid1, atomid2, differenced = False):
+        """ Make a rolling-window cross-correlation with time-lag offset on the x-axis
+
+        Parameters
+        -----------
+        atomid1: pandas dataframe for 1st particle position
+        atomid2: pandas dataframe for 2nd particle position
+        differenced: (optional) boolean, True to perform time-differencing, default is False
+        """
         seconds = 5
         fps = 10
         window_size = 300 #samples, should be a pretty high number compared to fps*sec to get good rolling averages
@@ -488,7 +569,7 @@ class TrajStats():
         t_end = t_start + window_size
         step_size = 20
         rss=[]
-        while t_end < self.pipeline.source.num_frames:
+        while t_end < self.timesteps:
             if differenced:
                 d1 = self.diffdf[atomid1].iloc[t_start:t_end]
                 d2 = self.vacdiffdf[atomid2].iloc[t_start:t_end]
